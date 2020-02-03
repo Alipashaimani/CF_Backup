@@ -4,14 +4,31 @@ import zipfile
 import os
 import time
 
+
+headers = {'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36',}
+
+#def get_proxies():
+#    TODO
+#proxies = get_proxies()
+
 def sub_req(contestid, subid):
-    t0 = time.time()
     url = 'https://codeforces.com/contest/' + contestid + '/submission/' + subid
-    page = requests.get(url)
-    res_delay = time.time() - t0
-    time.sleep(2 * res_delay)
-    soup = BeautifulSoup(page.content, 'html.parser')
-    code = soup.find(id = 'program-source-text')
+    i = 2
+    while True:
+        t0 = time.time()
+        page = requests.get(url, headers=headers,)
+        res_delay = time.time() - t0
+        time.sleep(0.5 + res_delay)
+        soup = BeautifulSoup(page.content, 'html.parser')
+        code = soup.find(id = 'program-source-text')
+        if code is None:
+            time.sleep(i * res_delay)
+            i = i * 2
+            print(i)
+            if i > 32:
+                return -1
+        else:
+            break
     return code.text
 
 def determineLang(lang):
@@ -24,7 +41,8 @@ def determineLang(lang):
     return '.txt'
 
 def f(username):
-    url = 'https://codeforces.com/api/user.status?handle=' + username + '&from=1'
+    cnt = 0
+    url = 'https://codeforces.com/api/user.status?handle=' + username
     filename = username + "'s submissions.zip"
     zip_file = zipfile.ZipFile(filename, 'w', compresslevel=zipfile.ZIP_DEFLATED)
     page = requests.get(url)
@@ -40,7 +58,11 @@ def f(username):
                 continue
             seen[problem_id] = True
             lang = determineLang(problem['programmingLanguage'])
+            print(str(cnt) + ': ' + problem_id)
+            cnt = cnt + 1
             code = sub_req(str(problem['contestId']), str(problem['id']))
+            if code == -1:
+                continue
             object_name = problem_id + lang
             object_handle = open(object_name, 'w')
             object_handle.write(code)
@@ -50,3 +72,4 @@ def f(username):
     zip_file.close()
 
 f('apiv')
+
